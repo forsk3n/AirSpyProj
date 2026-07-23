@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ASTERIX · пульт обработки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+:root{
+  --ink:#0a1418; --panel:#0f1e24; --panel-2:#13262e; --line:#1e3a44;
+  --amber:#f2b544; --cyan:#4fd0e0; --green:#5fd08a; --red:#ff6b6b;
+  --text:#cfe3e8; --muted:#6f8a92;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%, #12303a 0%, transparent 60%),
+    var(--ink);
+  color:var(--text); font-family:"Space Grotesk",system-ui,sans-serif;
+  font-size:14px; line-height:1.4;
+}
+.mono{font-family:"IBM Plex Mono",monospace}
+a{color:var(--cyan)}
+
+/* ---- header ---- */
+header{
+  display:flex; align-items:center; gap:20px; padding:14px 22px;
+  border-bottom:1px solid var(--line); background:rgba(10,20,24,.7);
+  position:sticky; top:0; z-index:500; backdrop-filter:blur(6px);
+}
+.brand{display:flex; align-items:center; gap:14px}
+.sweep{width:34px;height:34px;position:relative;flex:0 0 auto}
+.sweep i{position:absolute;inset:0;border-radius:50%;border:1px solid var(--line)}
+.sweep b{
+  position:absolute;inset:2px;border-radius:50%;
+  background:conic-gradient(from 0deg, transparent 0deg, rgba(242,181,68,.55) 40deg, transparent 60deg);
+  animation:spin 2.4s linear infinite; opacity:.25;
+}
+.sweep.live b{opacity:1}
+.sweep u{position:absolute;left:50%;top:50%;width:3px;height:3px;background:var(--amber);
+  border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 8px var(--amber)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.title{font-weight:700;letter-spacing:.5px;font-size:16px}
+.title span{color:var(--amber)}
+.subtitle{color:var(--muted);font-size:11px;letter-spacing:2px;text-transform:uppercase}
+
+.conn{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red)}
+.dot.up{background:var(--green);box-shadow:0 0 8px var(--green)}
+
+/* ---- folder bar ---- */
+.folderbar{
+  display:flex;gap:10px;align-items:center;padding:12px 22px;
+  border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap;
+}
+.folderbar input{
+  flex:1;min-width:240px;background:var(--ink);border:1px solid var(--line);
+  color:var(--text);padding:9px 12px;border-radius:6px;font-family:"IBM Plex Mono",monospace;font-size:13px;
+}
+.folderbar input:focus{outline:none;border-color:var(--cyan)}
+button{
+  background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+  padding:9px 16px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;
+  transition:.15s;
+}
+button:hover{border-color:var(--cyan)}
+button.primary{background:var(--amber);color:#231803;border-color:var(--amber);font-weight:600}
+button.primary:hover{filter:brightness(1.08)}
+button.danger{color:var(--red);border-color:#4a2530}
+button.danger:hover{background:#2a171c}
+.err{color:var(--red);font-size:12px;font-family:"IBM Plex Mono",monospace}
+
+/* ---- layout ---- */
+main{padding:18px 22px;display:grid;gap:16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tile .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1.4px}
+.tile .v{font-family:"IBM Plex Mono",monospace;font-size:26px;font-weight:600;margin-top:6px}
+.tile.amber .v{color:var(--amber)} .tile.cyan .v{color:var(--cyan)}
+.tile.green .v{color:var(--green)} .tile.red .v{color:var(--red)}
+.tile .u{color:var(--muted);font-size:11px;margin-left:4px;font-family:"Space Grotesk"}
+
+.grid2{display:grid;grid-template-columns:minmax(320px,1fr) 1.4fr;gap:16px}
+@media(max-width:1000px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.panel h2{
+  margin:0;padding:12px 16px;font-size:12px;letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--muted);border-bottom:1px solid var(--line);font-weight:600;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.panel h2 .hint{color:var(--line);font-weight:400;letter-spacing:0}
+.panel .body{padding:14px 16px}
+
+/* ---- CAT bars ---- */
+.bar{margin-bottom:12px}
+.bar:last-child{margin-bottom:0}
+.bar .row{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;font-size:12px;margin-bottom:5px}
+.bar .row .name{color:var(--text)}
+.bar .row .num{color:var(--muted)}
+.bar .track{height:8px;background:var(--ink);border-radius:4px;overflow:hidden}
+.bar .fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--amber));border-radius:4px;transition:width .5s}
+
+/* ---- tables ---- */
+table{width:100%;border-collapse:collapse;font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+th{position:sticky;top:0;background:var(--panel-2);color:var(--muted);text-align:left;
+  padding:8px 10px;font-weight:500;letter-spacing:.5px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid rgba(30,58,68,.5);white-space:nowrap}
+tr:hover td{background:rgba(79,208,224,.05)}
+.src-scroll,.flt-scroll{max-height:280px;overflow:auto}
+.flt-scroll{max-height:360px}
+.state-ACTIVE{color:var(--green)}
+.state-INACTIVE{color:var(--muted)}
+.pill{color:var(--amber)}
+.empty{color:var(--muted);text-align:center;padding:22px;font-family:"Space Grotesk"}
+
+#map{height:100%;min-height:430px;background:var(--ink)}
+.leaflet-container{background:#08161b}
+.plane{width:10px;height:10px;border-radius:50%;background:var(--amber);
+  box-shadow:0 0 10px var(--amber);border:1px solid #fff3;}
+.plane.ac{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}   /* Mode A/C */
+.plane.psr{background:var(--muted);box-shadow:none;width:7px;height:7px} /* primary */
+.plane.inactive{background:var(--muted);box-shadow:none;opacity:.45}
+.src-tag{font-size:11px;letter-spacing:.5px}
+.src-MODE_S{color:var(--amber)} .src-MODE_AC{color:var(--cyan)} .src-PRIMARY{color:var(--muted)}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel-2);color:var(--text)}
+.leaflet-popup-content{font-family:"IBM Plex Mono",monospace;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="sweep" id="sweep"><i></i><b></b><u></u></div>
+    <div>
+      <div class="title">ASTERIX <span>·</span> пульт обработки</div>
+      <div class="subtitle">real-time surveillance decode</div>
+    </div>
+  </div>
+  <div class="conn"><span class="dot" id="connDot"></span><span id="connText">подключение…</span></div>
+</header>
+
+<div class="folderbar">
+  <input id="pathInput" class="mono" placeholder="путь к папке с битовыми потоками, напр. /data/streams" />
+  <button id="browseBtn">Обзор…</button>
+  <button id="startBtn" class="primary">Старт</button>
+  <button id="stopBtn" class="danger">Стоп</button>
+  <span id="errBox" class="err"></span>
+</div>
+
+<main>
+  <section class="tiles" id="tiles">
+    <div class="tile"><div class="k">Файлов обработано</div><div class="v" id="s_files">0</div></div>
+    <div class="tile cyan"><div class="k">Пакетов принято</div><div class="v" id="s_recv">0</div></div>
+    <div class="tile green"><div class="k">Декодировано</div><div class="v" id="s_ok">0</div></div>
+    <div class="tile red"><div class="k">С ошибками</div><div class="v" id="s_err">0</div></div>
+    <div class="tile amber"><div class="k">Плотов (CAT048)</div><div class="v" id="s_plots">0</div></div>
+    <div class="tile"><div class="k">Активных бортов</div><div class="v" id="s_active">0</div></div>
+    <div class="tile"><div class="k">Объём данных</div><div class="v" id="s_mb">0<span class="u">MB</span></div></div>
+    <div class="tile cyan"><div class="k">Пропускная</div><div class="v" id="s_rate">0<span class="u">пак/с</span></div></div>
+  </section>
+
+  <section class="grid2">
+    <div style="display:grid;gap:16px;align-content:start">
+      <div class="panel">
+        <h2>По категориям (CAT) <span class="hint">блоков</span></h2>
+        <div class="body" id="catBars"><div class="empty">нет данных</div></div>
+      </div>
+      <div class="panel">
+        <h2>По приёмникам (SAC/SIC) <span class="hint">принято / обработано</span></h2>
+        <div class="src-scroll">
+          <table>
+            <thead><tr><th>SAC</th><th>SIC</th><th>Принято</th><th>Обработано</th></tr></thead>
+            <tbody id="srcRows"><tr><td colspan="4" class="empty">нет данных</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="display:flex;flex-direction:column">
+      <h2>Карта воздушной обстановки <span class="hint" id="mapHint">пересчёт из полярных координат</span></h2>
+      <div id="map" style="flex:1"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Борты <span class="hint">одна строка на ВС · обновляется в реальном времени</span></h2>
+    <div class="flt-scroll">
+      <table>
+        <thead><tr>
+          <th>Источник</th><th>ICAO</th><th>Трек</th><th>Код 3/A</th><th>Позывной</th><th>Страна</th><th>Тип ВС</th><th>Модель</th>
+          <th>Широта</th><th>Долгота</th><th>FL</th><th>Начало</th><th>Конец</th><th>Плотов</th><th>Статус</th>
+        </tr></thead>
+        <tbody id="fltRows"><tr><td colspan="15" class="empty">ожидание данных…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    # Embedded H2 file DB — zero setup. Data persists in ./data/asterix.mv.db
+    url: jdbc:h2:file:./data/asterix;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate.jdbc.batch_size: 200
+  h2:
+    console:
+      enabled: true        # browse the DB at http://localhost:8080/h2-console
+
+# ASTERIX pipeline tuning
+asterix:
+  poll-interval-ms: 1000          # how often the watched folder is scanned
+  expiry-interval-ms: 5000        # how often stale tracks are retired
+  inactivity-timeout-seconds: 30  # no plot for this long -> state = INACTIVE
+
+logging:
+  level:
+    com.asterix: INFO
+
+# ---------------------------------------------------------------------------
+# To use PostgreSQL instead of H2, comment the H2 datasource above and use:
+#
+# spring:
+#   datasource:
+#     url: jdbc:postgresql://localhost:5432/asterix
+#     username: asterix
+#     password: asterix
+#   jpa:
+#     properties:
+#       hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
+# ---------------------------------------------------------------------------
